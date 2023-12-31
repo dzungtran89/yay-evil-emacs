@@ -413,8 +413,9 @@ Provides us with hints on available keystroke combinations.
               (exec-path-from-shell-initialize)))
 #+END_SRC
 
-** dzungt
-*** lib
+
+* dzungt
+** lib
 #+begin_src emacs-lisp
   ;; credit: doomemacs
   (defmacro after! (package &rest body)
@@ -462,8 +463,23 @@ Provides us with hints on available keystroke combinations.
                  (setq body `((after! ,next ,@body)))))
               (`(after! (:and ,@package) ,@body))))))
 #+end_src
+** editor
+#+begin_src emacs-lisp
+  (use-package xclip
+    :ensure t
+    :config
+    (xclip-mode 1)
+    )
+#+end_src
 
-*** org
+** evil
+#+begin_src emacs-lisp
+  (after! evil
+    (setq evil-visual-update-x-selection-p nil)
+    )
+#+end_src
+
+** ORG
 #+begin_src emacs-lisp
   (defun og/tms13-hyperlink (input)
     (interactive "sForge ID: ")
@@ -476,103 +492,44 @@ Provides us with hints on available keystroke combinations.
         password-cache-expiry 86400)
 
   (after! org
-          (org-crypt-use-before-save-magic)
-          (setq org-tags-exclude-from-inheritance '("crypt"))
-          (setq auto-save-default nil)
+    (org-crypt-use-before-save-magic)
+    (setq org-tags-exclude-from-inheritance '("crypt"))
+    (setq auto-save-default nil)
 
-          (setq org-startup-folded 'show2levels
-                org-src-preserve-indentation t
-                org-hide-leading-stars t
-                org-hide-block-startup t
-                org-ellipsis "..."
-                )
+    (setq org-startup-folded 'show2levels
+          org-src-preserve-indentation t
+          org-hide-leading-stars t
+          org-hide-block-startup t
+          org-ellipsis "..."
+          )
 
-          (setq org-log-done 'time
-                org-todo-keywords
-                '((sequence "TODO(t)" "STRT(s!)" "NEXT(n@/!)" "HOLD(s!)"
-                            "|"
-                            "DONE(d/@)" "KILL(c@/!)")
-                  (sequence "MUST(m)" "SHOULD(s)" "COULD(c)")
-                  )
+    (setq org-log-done 'time
+          org-todo-keywords
+          '((sequence "TODO(t)" "STRT(s!)" "NEXT(n@/!)" "HOLD(s!)"
+                      "|"
+                      "DONE(d/@)" "KILL(c@/!)")
+            (sequence "MUST(m)" "SHOULD(s)" "COULD(c)")
+            )
 
-                org-capture-templates
-                '(;; #A priority
-                  ("i" "Inbox" entry (file+headline org-default-notes-file "Inbox")
-                   "* TODO %?\n%i\n%a"
-                   :prepend t)
-                  ("n" "Notes" entry (file+headline org-default-notes-file "Notes")
-                   "* %u %?\n%i\n%a"
-                   :prepend t)
-                  ))
+          org-capture-templates
+          '(;; #A priority
+            ("i" "Inbox" entry (file+headline org-default-notes-file "Inbox")
+             "* TODO %?\n%i\n%a"
+             :prepend t)
+            ("n" "Notes" entry (file+headline org-default-notes-file "Notes")
+             "* %u %?\n%i\n%a"
+             :prepend t)
+            ))
+  )
 #+end_src
 
-*** ORG roam
-#+BEGIN_SRC emacs-lisp
-  (use-package org-roam
-    :after org
-    :bind (("C-c n l" . org-roam-buffer-toggle)
-           ("C-c n f" . org-roam-node-find)
-           ("C-c n g" . org-roam-graph)
-           ("C-c n i" . org-roam-node-insert)
-           ("C-c n c" . org-roam-capture)
-           ;; Dailies
-           ("C-c n j" . org-roam-dailies-capture-today)
-           ("C-c o l" . og/tms13-hyperlink)
-           ("C-c o i" . org-insert-link)
-           )
-    :config
-    (setq org-roam-directory (file-truename "~/para")
-          org-roam-db-location (concat org-roam-directory "resource.db")
-
-          ;; templates
-          org-roam-capture-templates
-          '(("r" "default / resource" plain "%?"
-             :target (file+head
-                      "%(expand-file-name org-roam-directory)/resource/%<%Y%m%d>-%<%H%M%S>.org"
-                      "#+title:   ${title}\n"
-                      )
-             :unnarrowed t)
-
-            ("a" "area" plain "%?"
-             :target (file+head
-                      "%(expand-file-name org-roam-directory)/area/%<%Y%m%d>-%<%H%M%S>.org"
-                      "#+title:   ${title}\n"
-                      )
-             :unnarrowed t)
-
-            ("p" "project" plain "%?"
-             :target (file+head
-                      "%(expand-file-name org-roam-directory)/project/%<%Y%m%d>.org"
-                      "#+title:   ${title}\n"
-                      )
-             :unnarrowed t)
-
-            ("b" "bib / contact" plain "%?"
-             :target (file+head
-                      "%(expand-file-name org-roam-directory)/bib/%<%Y%m%d>-%<%H%M%S>.org"
-                      "#+title:   ${title}\n"
-                      )
-             :unnarrowed t)
-            )
-          )
-    )
-
-  (use-package org-roam-ui
-    :after org-roam
-    :config
-    (setq org-roam-ui-sync-theme t
-          org-roam-ui-follow t
-          org-roam-ui-update-on-save t
-          org-roam-ui-open-on-start t
-          )
-#+END_SRC
-*** org agenda
+*** Agenda
 #+begin_src emacs-lisp
   (after! org-agenda
-    ;; keep evil mappings
     ;; (setq org-super-agenda-header-map (make-sparse-keymap))
     (setq org-agenda-files (mapcar (lambda (file) (expand-file-name file org-directory))
-                                   '("project" "notes.org")))
+                                   '("project" "area"
+                                     "notes.org")))
 
     (setq org-agenda-start-day nil
           org-agenda-span 'day
@@ -607,15 +564,72 @@ Provides us with hints on available keystroke combinations.
     )
 #+end_src
 
-*** workspace
+*** Roam
+#+BEGIN_SRC emacs-lisp
+  (use-package org-roam
+    :after org
+    :bind (("C-c n l" . org-roam-buffer-toggle)
+           ("C-c n f" . org-roam-node-find)
+           ("C-c n g" . org-roam-graph)
+           ("C-c n i" . org-roam-node-insert)
+           ("C-c n c" . org-roam-capture)
+           ;; Dailies
+           ("C-c n j" . org-roam-dailies-capture-today)
+           ("C-c o l" . og/tms13-hyperlink)
+           ("C-c o i" . org-insert-link)
+           )
+    :custom
+    (org-roam-directory org-directory)
+    :config
+    (setq
+     org-roam-db-location (concat org-roam-directory "para.db")
+     org-roam-capture-templates
+     '(("r" "default / resource" plain "%?"
+        :target (file+head "%(expand-file-name org-roam-directory)/resource/%<%Y%m%d>-%<%H%M%S>.org"
+                           "#+title:   ${title}\n"
+                           )
+        :unnarrowed t)
+
+       ("a" "area" plain "%?"
+        :target (file+head "%(expand-file-name org-roam-directory)/area/%<%Y%m%d>-%<%H%M%S>.org"
+                           "#+title:   ${title}\n"
+                           )
+        :unnarrowed t)
+
+       ("p" "project" plain "%?"
+        :target (file+head "%(expand-file-name org-roam-directory)/project/%<%Y%m%d>.org"
+                           "#+title:   ${title}\n"
+                           )
+        :unnarrowed t)
+
+       ("b" "bib / contact" plain "%?"
+        :target (file+head "%(expand-file-name org-roam-directory)/bib/%<%Y%m%d>-%<%H%M%S>.org"
+                           "#+title:   ${title}\n"
+                           )
+        :unnarrowed t)
+       )
+     )
+    )
+
+  (use-package org-roam-ui
+    :after org-roam
+    :config
+    (setq org-roam-ui-sync-theme t
+          org-roam-ui-follow t
+          org-roam-ui-update-on-save t
+          org-roam-ui-open-on-start t
+          )
+    )
+#+END_SRC
+** workspace
 #+BEGIN_SRC emacs-lisp
   (use-package persp-mode)
 #+END_SRC
-*** Another evil collections
-#+begin_src emacs-lisp
+** Another evil collections
+#+BEGIN_SRC emacs-lisp
   (use-package evil-surround
     :after evil
     :ensure t
     :config
     (global-evil-surround-mode 1))
-#+end_src
+#+END_SRC
