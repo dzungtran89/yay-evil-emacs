@@ -413,72 +413,43 @@ Provides us with hints on available keystroke combinations.
               (exec-path-from-shell-initialize)))
 #+END_SRC
 
-
 * dzungt
-** lib
+** Taking away from [[https://github.com/doomemacs/doomemacs][doom]]
 #+begin_src emacs-lisp
-  ;; credit: doomemacs
-  (defmacro after! (package &rest body)
-    "Evaluate BODY after PACKAGE have loaded.
+(use-package general
+  :ensure t
+  )
 
-    PACKAGE is a symbol (or list of them) referring to Emacs features (aka
-    packages). PACKAGE may use :or/:any and :and/:all operators. The precise format
-    is:
+(add-to-list 'load-path (concat user-emacs-directory "lisp/"))
+(require 'doom-lib)
 
-    - An unquoted package symbol (the name of a package)
-        (after! helm BODY...)
-    - An unquoted, nested list of compound package lists, using any combination of
-      :or/:any and :and/:all
-        (after! (:or package-a package-b ...)  BODY...)
-        (after! (:and package-a package-b ...) BODY...)
-        (after! (:and package-a (:or package-b package-c) ...) BODY...)
-    - An unquoted list of package symbols (i.e. BODY is evaluated once both magit
-      and git-gutter have loaded)
-        (after! (magit git-gutter) BODY...)
-      If :or/:any/:and/:all are omitted, :and/:all are implied.
-
-    This emulates `eval-after-load' with a few key differences:
-
-    1. No-ops for package that are disabled by the user (via `package!') or not
-       installed yet.
-    2. Supports compound package statements (see :or/:any and :and/:all above).
-
-    Since the contents of these blocks will never by byte-compiled, avoid putting
-    things you want byte-compiled in them! Like function/macro definitions."
-    (declare (indent defun) (debug t))
-    (if (symbolp package)
-        (unless (memq package (bound-and-true-p doom-disabled-packages))
-          (list (if (or (not (bound-and-true-p byte-compile-current-file))
-                        (require package nil 'noerror))
-                    #'progn
-                  #'with-no-warnings)
-                `(with-eval-after-load ',package ,@body)))
-      (let ((p (car package)))
-        (cond ((memq p '(:or :any))
-               (macroexp-progn
-                (cl-loop for next in (cdr package)
-                         collect `(after! ,next ,@body))))
-              ((memq p '(:and :all))
-               (dolist (next (reverse (cdr package)) (car body))
-                 (setq body `((after! ,next ,@body)))))
-              (`(after! (:and ,@package) ,@body))))))
+#+end_src
+** lib
+** templates
+#+begin_src emacs-lisp
+(require 'org-tempo)
 #+end_src
 ** editor
 #+begin_src emacs-lisp
-  (use-package xclip
-    :ensure t
-    :config
-    (xclip-mode 1)
-    )
-#+end_src
+    (use-package xclip
+      :ensure t
+      :config
+      (xclip-mode 1)
+      )
 
+  ;; set type of line numbering (global variable)
+  (setq display-line-numbers-type 'relative)
+
+  ;; activate line numbering in all buffers/modes
+  (add-hook 'prog-mode-hook 'display-line-numbers-mode)
+  (add-hook 'org-mode-hook  'display-line-numbers-mode)
+#+end_src
 ** evil
 #+begin_src emacs-lisp
   (after! evil
     (setq evil-visual-update-x-selection-p nil)
     )
 #+end_src
-
 ** ORG
 #+begin_src emacs-lisp
   (defun og/tms13-hyperlink (input)
@@ -522,7 +493,6 @@ Provides us with hints on available keystroke combinations.
             ))
   )
 #+end_src
-
 *** Agenda
 #+begin_src emacs-lisp
   (after! org-agenda
@@ -563,7 +533,6 @@ Provides us with hints on available keystroke combinations.
             ("w" "Trobz" tags-todo "tz")))
     )
 #+end_src
-
 *** Roam
 #+BEGIN_SRC emacs-lisp
   (use-package org-roam
@@ -582,7 +551,7 @@ Provides us with hints on available keystroke combinations.
     (org-roam-directory org-directory)
     :config
     (setq
-     org-roam-db-location (concat org-roam-directory "para.db")
+     org-roam-db-location (concat org-roam-directory "/para.db")
      org-roam-capture-templates
      '(("r" "default / resource" plain "%?"
         :target (file+head "%(expand-file-name org-roam-directory)/resource/%<%Y%m%d>-%<%H%M%S>.org"
@@ -623,8 +592,18 @@ Provides us with hints on available keystroke combinations.
 #+END_SRC
 ** workspace
 #+BEGIN_SRC emacs-lisp
-  (use-package persp-mode)
-#+END_SRC
+(use-package projectile)
+(use-package projectile-ripgrep
+  :after projectile
+  )
+(use-package perspective
+  :bind
+  ("C-x C-b" . persp-list-buffers)         ; or use a nicer switcher, see below
+  :custom
+  (persp-mode-prefix-key (kbd "C-c M-p"))  ; pick your own prefix key here
+  :init
+  (persp-mode))
+  #+end_src
 ** Another evil collections
 #+BEGIN_SRC emacs-lisp
   (use-package evil-surround
@@ -633,3 +612,58 @@ Provides us with hints on available keystroke combinations.
     :config
     (global-evil-surround-mode 1))
 #+END_SRC
+** hledger
+#+begin_src emacs-lisp
+(use-package hledger-mode
+  :mode ("\\.journal\\'" "\\.hledger\\'")
+  :commands hledger-enable-reporting
+  :preface
+  (defun hledger/next-entry ()
+    "Move to next entry and pulse."
+    (interactive)
+    (hledger-next-or-new-entry)
+    (hledger-pulse-momentary-current-entry))
+
+  (defface hledger-warning-face
+    '((((background dark))
+       :background "Red" :foreground "White")
+      (((background light))
+       :background "Red" :foreground "White")
+      (t :inverse-video t))
+    "Face for warning"
+    :group 'hledger)
+
+  (defun hledger/prev-entry ()
+    "Move to last entry and pulse."
+    (interactive)
+    (hledger-backward-entry)
+    (hledger-pulse-momentary-current-entry))
+
+  :config
+  (add-hook 'hledger-view-mode-hook #'hl-line-mode)
+  ;; (add-hook 'hledger-view-mode-hook #'center-text-for-reading)
+  (add-hook 'hledger-view-mode-hook
+            (lambda ()
+              (run-with-timer 1
+                              nil
+                              (lambda ()
+                                (when (equal hledger-last-run-command
+                                             "balancesheet")
+                                  ;; highlight frequently changing accounts
+                                  (highlight-regexp "^.*\\(savings\\|cash\\).*$")
+                                  (highlight-regexp "^.*credit-card.*$"
+                                                    'hledger-warning-face))))))
+  (add-hook 'hledger-mode-hook
+            (lambda ()
+              (make-local-variable 'company-backends)
+              (add-to-list 'company-backends 'hledger-company)))
+
+  :bind (("C-c j" . hledger-run-command)
+         :map hledger-mode-map
+         ("C-c e" . hledger-jentry)
+         ("M-p" . hledger/prev-entry)
+         ("M-n" . hledger/next-entry))
+  :init
+  (setq hledger-show-expanded-report nil)
+  )
+#+end_src
